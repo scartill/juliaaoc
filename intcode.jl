@@ -26,11 +26,19 @@ function save(prog, ip, num, val)
 end
 
 function doinput(input)
-    return pop!(input)
+    if typeof(input) <: Array
+        return pop!(input)
+    else
+        return take!(input)
+    end
 end
 
 function dooutput(output, val)
-    return push!(output, val)
+    if typeof(output) <: Array    
+        push!(output, val)
+    else
+        put!(output, val)
+    end
 end
 
 function run(prog :: Array{Int}; input=[], output=[])

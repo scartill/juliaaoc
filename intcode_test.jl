@@ -1,3 +1,5 @@
+using Base
+
 include("intcode.jl")
 
 function testsimple(code, ans, input = [])
@@ -9,6 +11,20 @@ function testlastout(code, ans, input=[])
     run(code, input=input, output=output) 
     println(output[end] == ans)
 end
+
+function testoutasync(code, ans, input)
+    inchan = Channel()
+    outchan = Channel()
+    task = @async run(code, input=inchan, output=outchan)
+    for val in input
+        put!(inchan, val)
+    end
+    result = take!(outchan)
+    wait(task)
+    close(inchan)
+    close(outchan)
+    println(result == ans)
+end    
 
 testsimple("1,9,10,3,2,3,11,0,99,30,40,50", 3500)
 testsimple("1,0,0,0,99", 2)
@@ -31,18 +47,14 @@ testlastout("3,3,1108,-1,8,3,4,3,99", 0, [6])
 testlastout("3,3,1107,-1,8,3,4,3,99", 1, [7])
 testlastout("3,3,1107,-1,8,3,4,3,99", 0, [9])
 
-testlastout(
-    "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
+io_test = """
+    3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
     1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
-    999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99",
-    999, [6])
-testlastout(
-    "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
-    1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
-    999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99",
-    1000, [8])
-testlastout(
-    "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
-    1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
-    999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99",
-    1001, [15])
+    999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99
+"""
+
+testlastout(io_test, 999, [6])
+testlastout(io_test, 1000, [8])
+testlastout(io_test, 1001, [15])
+
+testoutasync(io_test, 999, [6])
