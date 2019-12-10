@@ -25,6 +25,14 @@ function save(prog, ip, num, val)
     prog[inx] = val
 end
 
+function doinput(input)
+    return pop!(input)
+end
+
+function dooutput(output, val)
+    return push!(output, val)
+end
+
 function run(prog :: Array{Int}; input=[], output=[])
     ip = 1
 
@@ -49,11 +57,11 @@ function run(prog :: Array{Int}; input=[], output=[])
 
         if opcode in [3,4]
             if opcode == 3
-                x = pop!(input)
+                x = doinput(input)
                 save(prog, ip, 1, x)
             elseif opcode == 4
                 x = param(prog, ip, 1, modes)
-                push!(output, x)
+                dooutput(output, x)
             end                   
             ip += 2
         end
@@ -83,10 +91,14 @@ function run(prog :: Array{Int}; input=[], output=[])
     return prog[1]
 end
 
+function parsecode(code :: String)
+    return map(s -> parse(Int, s), split(code, ","))
+end    
+
 function run(code :: String; input=[], output=[])
-    run(
-        map(s -> parse(Int, s), split(code, ",")),
-        input=input,
-        output=output
-    )
+    run(parsecode(code), input=input, output=output)
+end
+
+function loadcode(filename)
+    return parsecode(read(filename, String))
 end
