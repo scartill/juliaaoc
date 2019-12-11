@@ -3,25 +3,29 @@ using Base
 function fetch(inst)
     opcode = inst % 100
     inst ÷= 100
-    im1 = (inst % 10) == 1
+    m1 = (inst % 10)
     inst ÷= 10
-    im2 = (inst % 10) == 1
+    m2 = (inst % 10)
     inst ÷= 10
-    im3 = (inst % 10) == 1
-    return (opcode, [im1, im2, im3])
+    m3 = (inst % 10)
+    return (opcode, [m1, m2, m3])
 end
 
-function param(prog, ip, num, modes)
-    if modes[num]
+function param(prog, ip, num, modes, rb)
+    if modes[num] == 1 # immediate
         return prog[ip + num]
-    else
+    elseif modes[num] == 0 # position
         inx = prog[ip + num] + 1
+        return prog[inx] 
+    else # relative
+        inx = prog[ip + num] + 1 + rb
         return prog[inx]
     end
 end
 
-function save(prog, ip, num, val)
-    inx = prog[ip + num] + 1
+function save(prog, ip, num, val, modes, rb)
+    offset = modes[num] == 2 ? rb : 0
+    inx = prog[ip + num] + 1 + offset
     prog[inx] = val
 end
 
@@ -43,6 +47,9 @@ end
 
 function run(prog :: Array{Int}; input=[], output=[])
     ip = 1
+    rb = 0
+
+    prog = [prog; zeros(Int, 1024)]
 
     while true
         opcode, modes = fetch(prog[ip])
@@ -52,31 +59,31 @@ function run(prog :: Array{Int}; input=[], output=[])
         end
 
         if opcode in [1,2]
-            x = param(prog, ip, 1, modes)
-            y = param(prog, ip, 2, modes)
+            x = param(prog, ip, 1, modes, rb)
+            y = param(prog, ip, 2, modes, rb)
             t = if opcode == 1
                 x + y
             elseif opcode == 2
                 x * y
             end
-            save(prog, ip, 3, t)
+            save(prog, ip, 3, t, modes, rb)
             ip += 4
         end
 
         if opcode in [3,4]
             if opcode == 3
                 x = doinput(input)
-                save(prog, ip, 1, x)
+                save(prog, ip, 1, x, modes, rb)
             elseif opcode == 4
-                x = param(prog, ip, 1, modes)
+                x = param(prog, ip, 1, modes, rb)
                 dooutput(output, x)
             end                   
             ip += 2
         end
 
         if opcode in [5,6]
-            test = param(prog, ip, 1, modes)
-            target = param(prog, ip, 2, modes) + 1
+            test = param(prog, ip, 1, modes, rb)
+            target = param(prog, ip, 2, modes, rb) + 1
             jump = opcode == 5 && test != 0 ||
                    opcode == 6 && test == 0
             if jump
@@ -87,12 +94,18 @@ function run(prog :: Array{Int}; input=[], output=[])
         end
 
         if opcode in [7,8]
-            a = param(prog, ip, 1, modes)
-            b = param(prog, ip, 2, modes)
+            a = param(prog, ip, 1, modes, rb)
+            b = param(prog, ip, 2, modes, rb)
             flag = opcode == 7 && a < b ||
                    opcode == 8 && a == b
-            save(prog, ip, 3, flag ? 1 : 0)
+            save(prog, ip, 3, flag ? 1 : 0, modes, rb)
             ip += 4
+        end
+
+        if opcode == 9
+            a = param(prog, ip, 1, modes, rb)
+            rb += a
+            ip += 2
         end
     end
 

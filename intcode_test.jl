@@ -58,3 +58,24 @@ testlastout(io_test, 1000, [8])
 testlastout(io_test, 1001, [15])
 
 testoutasync(io_test, 999, [6])
+
+test_self = parsecode("""
+109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99
+""")
+output = []
+run(test_self, output=output)
+println(output == test_self)
+
+test_16digit =  """
+1102,34915192,34915192,7,4,7,99,0
+"""
+output = []
+run(test_16digit, output=output)
+println(output)
+
+test_large = """
+104,1125899906842624,99
+"""
+output = []
+run(test_large, output=output)
+println(output)
