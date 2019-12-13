@@ -1,3 +1,4 @@
+
 function load(string) :: Matrix{Bool}
     string |>
     x -> split(x, "\n") |>
@@ -9,8 +10,8 @@ function load(string) :: Matrix{Bool}
     x -> hcat(x...)'
 end
 
-function visible(starmap, pivx, pivy)
-    result = Set()
+function shape(starmap, pivx, pivy)
+    vdlist = []
     for y in 1:size(starmap, 1)
         for x in 1:size(starmap, 2)
             (starmap[y, x] && (x, y) != (pivx, pivy)) ? true : continue
@@ -23,26 +24,47 @@ function visible(starmap, pivx, pivy)
             else
                 gcd(abs(dx), abs(dy))
             end
-            vect = (dx/g, dy/g)
-            if vect ∉ result
-                push!(result, vect)
-            end        
+            vd = [x, y, dx/g, dy/g, abs(dx) + abs(dy)]
+            push!(vdlist, vd)
         end
     end
-    return length(result)
+    return vdlist
+end
+
+function visible(starmap, pivx, pivy)
+    shape(starmap, pivx, pivy) |>
+    v -> map(vd -> vd[3:4], v) |>
+    unique |> length
 end
 
 function maxvisible(starmap)
-    result = 0
+    maxvis = 0
+    maxinx = (0, 0)
     for y in 1:size(starmap, 1)        
         for x in 1:size(starmap, 2)
             if starmap[y, x]
                 vis = visible(starmap, x, y)
-                result = max(result, vis)
+                if vis > maxvis
+                    maxvis = vis
+                    maxinx = (y, x)
+                end
             end
         end
     end
-    return result
+    return (maxvis, maxinx)
+end
+
+function vaporised(starmap, which)
+    laser = maxvisible(starmap) |> last
+    vdlist = shape(starmap, laser...)
+    sorter = function(vd)
+        dx = vd[3]
+        dy = vd[4]
+        dist = vd[5]
+        c
+    end
+    vd = sort(vdlist; by=sorter)[which]
+    return 100*vd[1] + vd[2]
 end
 
 """
@@ -51,7 +73,7 @@ end
 #####
 ....#
 ...##
-""" |> load |> maxvisible |> println
+""" |> load |> maxvisible |> first |> (x -> x == 8) |> println
 
 """
 ......#.#.
@@ -64,7 +86,7 @@ end
 .##.#..###
 ##...#..#.
 .#....####
-""" |> load |> maxvisible |> println
+""" |> load |> maxvisible |> first |> (x -> x == 33) |> println
 
 """
 #.#...#.#.
@@ -77,7 +99,7 @@ end
 ..##....##
 ......#...
 .####.###.
-"""  |> load |> maxvisible |> println
+"""  |> load |> maxvisible |> first |> (x -> x == 35) |> println
 
 """
 .#..#..###
@@ -90,7 +112,7 @@ end
 #..#.#.###
 .##...##.#
 .....#.#..
-""" |> load |> maxvisible |> println
+""" |> load |> maxvisible |> first |> (x -> x == 41) |> println
 
 """
 .#..##.###...#######
@@ -113,6 +135,8 @@ end
 .#.#.###########.###
 #.#.#.#####.####.###
 ###.##.####.##.#..##
-""" |> load |> maxvisible |> println
+""" |> load |> maxvisible |> first |> (x -> x == 210) |> println
 
-read("input_d10.txt", String) |> load |> maxvisible |> println
+starmap = read("input_d10.txt", String)
+starmap |> load |> maxvisible |> first |> println
+#starmap |> load |> m -> vaporised(m, 210) |> println
