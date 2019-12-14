@@ -10,22 +10,29 @@ function load(string) :: Matrix{Bool}
     x -> hcat(x...)'
 end
 
+function pushlist!(dict, key, val)
+    if haskey(dict, key)
+        push!(dict[key], val)
+    else
+        push!(dict, key => [val])
+    end
+end
+
 function shape(starmap, pivx, pivy)
-    vdlist = []
+    vdlist = Dict()
     for y in 1:size(starmap, 1)
         for x in 1:size(starmap, 2)
             (starmap[y, x] && (x, y) != (pivx, pivy)) ? true : continue
             dx = x - pivx
-            dy = y - pivy
+            dy = pivy - y
             g = if dx == 0
-                dy
+                abs(dy)
             elseif dy == 0
-                dx
+                abs(dx)
             else
                 gcd(abs(dx), abs(dy))
             end
-            vd = [x, y, dx/g, dy/g, abs(dx) + abs(dy)]
-            push!(vdlist, vd)
+            pushlist!(vdlist, (Int(dx/g), Int(dy/g)), [x, y, abs(dx) + abs(dy)])
         end
     end
     return vdlist
@@ -33,8 +40,7 @@ end
 
 function visible(starmap, pivx, pivy)
     shape(starmap, pivx, pivy) |>
-    v -> map(vd -> vd[3:4], v) |>
-    unique |> length
+    keys |> unique |> length
 end
 
 function maxvisible(starmap)
@@ -46,7 +52,7 @@ function maxvisible(starmap)
                 vis = visible(starmap, x, y)
                 if vis > maxvis
                     maxvis = vis
-                    maxinx = (y, x)
+                    maxinx = (x, y)
                 end
             end
         end
@@ -57,23 +63,53 @@ end
 function vaporised(starmap, which)
     laser = maxvisible(starmap) |> last
     vdlist = shape(starmap, laser...)
-    sorter = function(vd)
-        dx = vd[3]
-        dy = vd[4]
-        dist = vd[5]
-        c
+    sorter = function(vect)
+        (dx, dy) = vect
+        (q, da, db) = if dx >= 0 && dy >= 0
+            (10, dx, dy)
+        elseif dx >= 0 && dy <= 0
+            (20, dy, dx)
+        elseif dx <= 0 && dy <= 0
+            (30, dx, dy)
+        elseif dx <= 0 && dy >= 0
+            (40, dy, dx)
+        end
+        q + atan(abs(da), abs(db)) 
     end
-    vd = sort(vdlist; by=sorter)[which]
-    return 100*vd[1] + vd[2]
+    skeys = sort(vdlist |> keys |> collect; by=sorter)
+
+    inx = 1
+    while true
+        for key in skeys
+            onvect = sort(vdlist[key]; by=vd->vd[3], rev=true)
+            if !isempty(onvect)
+                vd = pop!(onvect)
+                if inx == which
+                    return 100*(vd[1] - 1) + (vd[2] - 1)
+                end
+                inx += 1
+            end
+        end
+    end
 end
 
-"""
+function check(expected)    
+    return function(val)
+        if val != expected
+            println("expected $expected; received $val")
+        end
+        return val
+    end
+end
+
+simple_test = """
 .#..#
 .....
 #####
 ....#
 ...##
-""" |> load |> maxvisible |> first |> (x -> x == 8) |> println
+"""
+simple_test |> load |> maxvisible |> first |> check(8)
 
 """
 ......#.#.
@@ -86,7 +122,7 @@ end
 .##.#..###
 ##...#..#.
 .#....####
-""" |> load |> maxvisible |> first |> (x -> x == 33) |> println
+""" |> load |> maxvisible |> first |> check(33)
 
 """
 #.#...#.#.
@@ -99,7 +135,7 @@ end
 ..##....##
 ......#...
 .####.###.
-"""  |> load |> maxvisible |> first |> (x -> x == 35) |> println
+"""  |> load |> maxvisible |> first |> check(35)
 
 """
 .#..#..###
@@ -112,9 +148,9 @@ end
 #..#.#.###
 .##...##.#
 .....#.#..
-""" |> load |> maxvisible |> first |> (x -> x == 41) |> println
+""" |> load |> maxvisible |> first |> check(41)
 
-"""
+large_test = """
 .#..##.###...#######
 ##.############..##.
 .#.######.########.#
@@ -135,8 +171,13 @@ end
 .#.#.###########.###
 #.#.#.#####.####.###
 ###.##.####.##.#..##
-""" |> load |> maxvisible |> first |> (x -> x == 210) |> println
+"""
+
+large_test |> load |> maxvisible |> first |> check(210)
 
 starmap = read("input_d10.txt", String)
 starmap |> load |> maxvisible |> first |> println
-#starmap |> load |> m -> vaporised(m, 210) |> println
+
+large_test |> load |> m -> vaporised(m, 200) |> check(802)
+starmap |> load |> m -> vaporised(m, 200) |> println
+
