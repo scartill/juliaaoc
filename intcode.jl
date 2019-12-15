@@ -32,6 +32,8 @@ end
 function doinput(input)
     if typeof(input) <: Array
         return pop!(input)
+    elseif !isempty(methods(input))
+        return input()
     else
         return take!(input)
     end
